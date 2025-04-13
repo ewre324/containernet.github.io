@@ -39,7 +39,7 @@ Containernet comes with two installation and deployment options.
 
 ### Option 1: Bare-metal installation
 
-This option is the most flexible. Your machine should run Ubuntu **20.04 LTS** and **Python3**.
+This option is the most flexible. Your machine should run at least Ubuntu **22.04 LTS** and **Python3**.
 
 First install Ansible:
 
@@ -53,10 +53,21 @@ Then clone the repository:
 git clone https://github.com/containernet/containernet.git
 ```
 
-Finally run the Ansible playbook to install required dependencies:
+Run the Ansible playbook to install required dependencies:
 
 ```bash
 sudo ansible-playbook -i "localhost," -c local containernet/ansible/install.yml
+```
+
+Finally, install Containernet inside a virtual env. Installing Containernet as root is not possible anymore starting from Ubuntu 24.04 and does not work on Ubuntu 22.04 because of [a setuptools issue](https://github.com/pypa/setuptools/issues/4483)
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+# If you want to install containernet in "edit" mode
+pip install -e . --no-binary :all:
+# If you want to install containernet in "normal" mode
+pip install .
 ```
 
 After the installation finishes, you should be able to [get started](#get-started).
@@ -82,14 +93,16 @@ docker pull containernet/containernet
 You can then directly start the default containernet example:
 
 ```bash
-docker run --name containernet -it --rm --privileged --pid='host' -v /var/run/docker.sock:/var/run/docker.sock containernet/containernet
+docker run --name containernet -it --rm --privileged --pid='host' --net='host' -v /var/run/docker.sock:/var/run/docker.sock containernet/containernet
 ```
 
 or run an interactive container and drop to the shell:
 
 ```bash
-docker run --name containernet -it --rm --privileged --pid='host' -v /var/run/docker.sock:/var/run/docker.sock containernet/containernet /bin/bash
+docker run --name containernet -it --rm --privileged --pid='host' --net='host' -v /var/run/docker.sock:/var/run/docker.sock containernet/containernet /bin/bash
 ```
+
+If the container takes a very long time to create controllers, then you can try adding `--ulimit nofile=524288:524288` to the docker command. The issue is that mnexec.c tries to close all possibly open file descriptors, which may be set to a very high value. The nofile in the container does not even have to match the nofile value of the host shell.
 
 ## Get started
 
@@ -101,6 +114,11 @@ Make sure you are in the `containernet` directory. You can start an example topo
 
 ```bash
 sudo python3 examples/containernet_example.py
+```
+
+With the recent update to Ubuntu 24.04, Containernet has to be installed and used in a venv. However, Mininet still requires root rights. You can start your topologies with:
+```bash
+sudo -E env PATH=$PATH python3 examples/containernet_example.py
 ```
 
 After launching the emulated network, you can interact with the involved containers through Mininet's interactive CLI. You can for example:
@@ -121,7 +139,7 @@ Containernet already provides a simple Python server for testing purposes. To bu
 docker build -f Dockerfile.server -t test_server:latest .
 ```
 
-If you have not added your user to the `docker` group as described [here](https://docs.docker.com/engine/install/linux-postinstall/), you will need to prepend `sudo`.
+If you have not added your user to the `docker` group as described [here](https://docs.docker.com/engine/install/linux-postinstall/), you will need to prepend `sudo`. 
 
 We further need a basic client to make a CURL request. Containernet provides that as well. Please run
 
